@@ -1,0 +1,7 @@
+.cache/
+__pycache__/
+.venv/
+test.py
+main.py
+.env
+vector_db/

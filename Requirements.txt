@@ -1,0 +1,47 @@
+# ---------- UI ----------
+streamlit>=1.37.0
+
+# ---------- Audio Acquisition ----------
+yt-dlp>=2024.8.6
+ffmpeg-python>=0.2.0
+pydub>=0.25.1                     
+audioop-lts>=0.2.2
+
+# ---------- Transcription ----------
+openai-whisper>=20231117
+torch>=2.2.0
+torchaudio>=2.2.0
+
+# ---------- Translation ----------
+# googletrans==4.0.0-rc1
+# Alternative (more reliable than googletrans, uncomment if needed):
+deep-translator>=1.11.4
+
+# ---------- LangChain / LLM (Mistral) ----------
+langchain>=0.2.14
+langchain-core>=0.2.35
+langchain-community>=0.2.12
+langchain-groq>=0.1.6
+langchain-mistralai>=0.1.13
+mistralai>=0.4.2
+
+# ---------- RAG: Vector Store + Embeddings ----------
+chromadb>=0.5.5
+langchain-huggingface>=0.0.3
+sentence-transformers>=3.0.1
+
+# ---------- Text Splitting / Utils ----------
+tiktoken>=0.7.0
+
+# ---------- Export (PDF/TXT) ----------
+fpdf2>=2.7.9
+reportlab>=4.2.0
+
+# ---------- Config / Env ----------
+python-dotenv>=1.0.1
+
+# ---------- General ----------
+requests>=2.32.3
+numpy>=1.26.4
+tqdm>=4.66.0
+requests>=2.32.0
