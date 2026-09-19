@@ -1,21 +1,35 @@
-import os 
+import logging
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from core.vector_store import build_vector_store, load_vector_store, get_retriever
 
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+LOGGER = logging.getLogger(__name__)
+
 def get_llm():
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not configured in the project .env file")
     return ChatGroq(
         model="openai/gpt-oss-20b",
-        groq_api_key=os.getenv("GROQ_API_KEY"),
+        groq_api_key=api_key,
         temperature=0.3,
+        timeout=120,
+        max_retries=2,
     )
 
 def format_docs(docs):
     return "\n\n".join([doc.page_content for doc in docs])
 
 def build_rag_chain(transcript: str):
+    if not transcript.strip():
+        raise ValueError("Cannot build a chat index from an empty transcript")
+    LOGGER.info("RAG index build started")
 
     vector_store = build_vector_store(transcript)
     retriever = get_retriever(vector_store, k=5)
@@ -47,6 +61,7 @@ Context from meeting transcript:
         | prompt | llm | StrOutputParser()
     )
 
+    LOGGER.info("RAG index build completed")
     return rag_chain
 
 

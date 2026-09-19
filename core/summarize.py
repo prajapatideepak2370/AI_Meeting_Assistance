@@ -1,15 +1,26 @@
+import logging
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_groq import ChatGroq
-import os 
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+LOGGER = logging.getLogger(__name__)
 
 def get_llm():
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not configured in the project .env file")
     return ChatGroq(
         model="openai/gpt-oss-20b",
-        groq_api_key=os.getenv("GROQ_API_KEY"),
+        groq_api_key=api_key,
         temperature=0.3,
+        timeout=120,
+        max_retries=2,
     )
 
 
@@ -22,6 +33,9 @@ def split_transcript(transcript: str) -> list:
     return splitter.split_text(transcript)
 
 def summarize(transcript : str) -> str:
+    if not transcript.strip():
+        raise ValueError("Cannot summarize an empty transcript")
+    LOGGER.info("Summary generation started; transcript length: %s", len(transcript))
     llm = get_llm()
 
     map_prompt = ChatPromptTemplate.from_messages(
@@ -35,7 +49,12 @@ def summarize(transcript : str) -> str:
 
     chunks = split_transcript(transcript)
 
-    chunk_summaries = [map_chain.invoke({"text" : chunk}) for chunk in chunks]
+    chunk_summaries = []
+    for index, chunk in enumerate(chunks, start=1):
+        LOGGER.info("Summary API request sent for transcript section %s/%s", index, len(chunks))
+        summary = map_chain.invoke({"text" : chunk})
+        LOGGER.info("Summary API response received for transcript section %s/%s", index, len(chunks))
+        chunk_summaries.append(summary)
 
     combined = "\n\n".join(chunk_summaries)
 
@@ -54,9 +73,14 @@ def summarize(transcript : str) -> str:
         RunnablePassthrough() | RunnableLambda(lambda x:{"text":x}) | combined_prompt | llm | StrOutputParser()
     )
 
-    return combined_chain.invoke(combined)
+    LOGGER.info("Summary API request sent for final combination")
+    result = combined_chain.invoke(combined)
+    LOGGER.info("Summary generated")
+    return result
 
 def generate_title(transcipt : str) -> str:
+    if not transcipt.strip():
+        raise ValueError("Cannot generate a title from an empty transcript")
     llm = get_llm()
 
     

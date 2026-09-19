@@ -1,10 +1,12 @@
-import os
+import logging
+from pathlib import Path
 from langchain_chroma import Chroma 
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
-CHROMA_DIR = "vector_db"
+LOGGER = logging.getLogger(__name__)
+CHROMA_DIR = str(Path(__file__).resolve().parents[1] / "vector_db")
 COLLECTION_NAME = "meeting_transcript"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
@@ -15,7 +17,9 @@ def get_embeddings():
     )
 
 def build_vector_store(transcript: str) -> Chroma:
-    print("Building vector store")
+    if not transcript.strip():
+        raise ValueError("Cannot build a vector store from an empty transcript")
+    LOGGER.info("Building vector store")
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size = 500,

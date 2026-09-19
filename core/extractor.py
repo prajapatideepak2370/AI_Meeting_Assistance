@@ -1,22 +1,34 @@
 #Actionableitems , decision , questions 
 
+import logging
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
-import os 
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+LOGGER = logging.getLogger(__name__)
 
 
 def get_llm():
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not configured in the project .env file")
     return ChatGroq(
         model="openai/gpt-oss-20b",
-        groq_api_key=os.getenv("GROQ_API_KEY"),
+        groq_api_key=api_key,
         temperature=0.2,
+        timeout=120,
+        max_retries=2,
     )
 
 
 
 def build_chain(system_prompt : str):
+    LOGGER.info("LLM extraction chain initialized")
     llm = get_llm()
     return (
         RunnablePassthrough() | RunnableLambda(lambda x : {"text" : x}) |ChatPromptTemplate.from_messages([

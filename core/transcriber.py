@@ -1,4 +1,6 @@
+import logging
 import os
+import time
 from pathlib import Path
 
 import requests
@@ -17,15 +19,16 @@ SARVAM_MODEL = os.getenv("SARVAM_STT_MODEL", "saaras:v3")
 SARVAM_PIECE_SECONDS = min(int(os.getenv("SARVAM_PIECE_SECONDS", "25")), 30)
 
 _model = None
+LOGGER = logging.getLogger(__name__)
 
 def load_model():
 
     global _model
 
     if _model is None:
-        print(f"Loading Whisper model: {WHISPER_MODEL} ...")
+        LOGGER.info("Whisper model loading started: %s", WHISPER_MODEL)
         _model = whisper.load_model(WHISPER_MODEL)
-        print("Whisper model loaded.")
+        LOGGER.info("Whisper model loaded")
     return _model
 
 
@@ -33,7 +36,16 @@ def transcribe_chunk_whisper(chunk_path: str) -> str:
 
     model = load_model()
 
-    result = model.transcribe(chunk_path, task="transcribe")
+    LOGGER.info("Whisper transcription started: %s", chunk_path)
+    started = time.perf_counter()
+    result = model.transcribe(
+        chunk_path,
+        task="transcribe",
+        fp16=False,
+        verbose=False,
+        condition_on_previous_text=False,
+    )
+    LOGGER.info("Whisper transcription completed in %.1fs: %s", time.perf_counter() - started, chunk_path)
     return result.get("text", "").strip()
 
 def _send_to_sarvam(piece_path: str) -> str:
@@ -107,22 +119,33 @@ def transcribe_chunk(chunk_path: str, language: str = "english") -> str:
         return transcribe_chunk_sarvam(chunk_path)
     return transcribe_chunk_whisper(chunk_path)
 
-def transcribe_all(chunks: list, language: str = "english") -> str:
+def transcribe_all(chunks: list, language: str = "english", progress_cb=None) -> str:
 
-    full_transcript = ""
+    if not chunks:
+        raise ValueError("No audio chunks were created")
+
+    full_transcript = []
 
     engine = "Sarvam AI" if language.lower() in {"hinglish", "sarvam"} else "Whisper"
-    print(f"Using {engine} for transcription.")
+    LOGGER.info("Using %s for transcription", engine)
 
     for i, chunk in enumerate(chunks):
 
-        print(f"Transcribing chunk {i + 1}/{len(chunks)}...")
+        message = f"Transcribing chunk {i + 1}/{len(chunks)}..."
+        LOGGER.info(message)
+        if progress_cb:
+            progress_cb(message, 30 + int(25 * i / len(chunks)))
 
         text = transcribe_chunk(chunk, language=language)
 
         if text:
-            full_transcript += text + " "
+            full_transcript.append(text)
 
-    print("Transcription complete.")
+    transcript = " ".join(full_transcript).strip()
+    LOGGER.info("Transcription completed; transcript length: %s", len(transcript))
+    if progress_cb:
+        progress_cb("Transcription completed", 55)
 
-    return full_transcript.strip()  
+    if not transcript:
+        raise ValueError("Whisper returned an empty transcript")
+    return transcript
