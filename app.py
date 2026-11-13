@@ -1,13 +1,12 @@
-"""
+﻿"""
 AI Video Meeting Assistant — Streamlit UI
 Wraps the existing CLI pipeline (utils.audio_processor, core.transcriber,
 core.summarize, core.extractor, core.rag_engine) in a polished web UI.
 
-Run with:
-    streamlit run streamlit_app.py
 """
 
 import os
+import re
 import tempfile
 import traceback
 import logging
@@ -468,6 +467,22 @@ for key, value in defaults.items():
         st.session_state[key] = value
 
 
+def is_valid_youtube_url(value: str) -> bool:
+    """Accept common YouTube URL patterns while rejecting pasted terminal output or garbage."""
+    if not value or not isinstance(value, str):
+        return False
+    value = value.strip()
+    if not value:
+        return False
+
+    patterns = [
+        r"^https?://(www\.)?youtube\.com/(watch\?v=|shorts/|live/)[A-Za-z0-9_\-]+.*$",
+        r"^https?://youtu\.be/[A-Za-z0-9_\-]+.*$",
+        r"^https?://m\.youtube\.com/(watch\?v=|shorts/|live/)[A-Za-z0-9_\-]+.*$",
+    ]
+    return any(re.match(pattern, value, re.IGNORECASE) for pattern in patterns)
+
+
 # --------------------------------------------------------------------------
 # Pipeline runner (mirrors run_pipeline from the CLI script)
 # --------------------------------------------------------------------------
@@ -601,7 +616,11 @@ if run_clicked:
         if not source_value or not source_value.strip():
             st.error("Please paste a YouTube URL first.")
         else:
-            resolved_source = source_value.strip()
+            cleaned_value = source_value.strip()
+            if not is_valid_youtube_url(cleaned_value):
+                st.error("Please enter a valid YouTube URL (for example: https://youtu.be/.... or https://www.youtube.com/watch?v=....)")
+            else:
+                resolved_source = cleaned_value
     else:
         if uploaded_file is None:
             st.error("Please upload a file first.")

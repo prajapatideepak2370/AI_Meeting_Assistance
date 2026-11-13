@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -92,12 +93,29 @@ def chunk_audio(wav_path : str , chunk_minutes : int | None = None) -> list:
     return chunks
 
 def process_input(source: str) -> list:
+    if source is None:
+        raise ValueError("No input source was provided.")
+
+    source = str(source).strip()
+    if not source:
+        raise ValueError("No input source was provided.")
+
     if source.startswith("http://") or source.startswith("https://"):
         LOGGER.info("Detected YouTube URL")
+        if "youtube.com" not in source.lower() and "youtu.be" not in source.lower():
+            raise ValueError(f"Invalid YouTube URL: {source}. Please paste a valid YouTube link.")
         wav_path = download_youtube_audio(source)
     else:
+        if re.search(r"\b\d{4}-\d{2}-\d{2}.*\b(INFO|ERROR|WARNING|DEBUG)\b.*https?://", source, re.IGNORECASE):
+            raise ValueError(
+                "The input looks like terminal log output, not a valid file path or YouTube URL. "
+                "Paste a valid YouTube URL or upload a real file."
+            )
         if not os.path.isfile(source):
-            raise FileNotFoundError(f"Input file does not exist: {source}")
+            raise FileNotFoundError(
+                f"Input file does not exist: {source}. "
+                "If you meant to use a YouTube URL, paste a valid YouTube link instead."
+            )
         LOGGER.info("Detected local file")
         wav_path = convert_to_wav(source)
 
